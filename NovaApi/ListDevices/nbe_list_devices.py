@@ -61,7 +61,7 @@ def list_devices():
 
     selected_value = input("\nIf you want to see locations of a tracker, type the number of the tracker and press 'Enter'.\nIf you want to register a new ESP32- or Zephyr-based tracker, type 'r' and press 'Enter': ")
 
-    if selected_value == 'r':
+    if selected_value.strip().lower() == 'r':
         print("Loading...")
         register_esp32()
     else:

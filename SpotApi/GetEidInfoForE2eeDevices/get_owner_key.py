@@ -9,11 +9,19 @@ from KeyBackup.cloud_key_decryptor import decrypt_owner_key
 from KeyBackup.shared_key_retrieval import get_shared_key
 from SpotApi.GetEidInfoForE2eeDevices.get_eid_info_request import get_eid_info
 
+import secrets
+
 def _retrieve_owner_key() -> str:
     eid_info = get_eid_info()
     shared_key = get_shared_key()
 
     encrypted_owner_key = eid_info.encryptedOwnerKeyAndMetadata.encryptedOwnerKey
+    if not encrypted_owner_key:
+        print("[GetOwnerKey] No existing owner key found in Google account (no existing trackers registered).")
+        print("[GetOwnerKey] Generating and provisioning a fresh 32-byte owner key...")
+        owner_key = secrets.token_bytes(32)
+        return owner_key.hex()
+
     owner_key = decrypt_owner_key(shared_key, encrypted_owner_key)
     owner_key_version = eid_info.encryptedOwnerKeyAndMetadata.ownerKeyVersion
 

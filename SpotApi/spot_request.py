@@ -31,6 +31,8 @@ def spot_request(api_scope: str, payload: bytes) -> bytes:
         response = client.post(url, headers=headers, content=payload)
 
         if response.status_code == 200:
+            if not response.content:
+                return b''
             result = GrpcParser.extract_grpc_payload(response.content)
             return result
         else:
