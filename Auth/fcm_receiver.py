@@ -79,8 +79,11 @@ class FcmReceiver:
         if 'data' in obj and 'com.google.android.apps.adm.FCM_PAYLOAD' in obj['data']:
 
             # Decode the base64 string
-            base64_string = obj['data']['com.google.android.apps.adm.FCM_PAYLOAD']
-            decoded_bytes = base64.b64decode(base64_string)
+            base64_string = obj['data']['com.google.android.apps.adm.FCM_PAYLOAD'].strip()
+            rem = len(base64_string) % 4
+            if rem > 0:
+                base64_string += "=" * (4 - rem)
+            decoded_bytes = base64.urlsafe_b64decode(base64_string)
 
             # print("[FCMReceiver] Decoded FMDN Message:", decoded_bytes.hex())
 

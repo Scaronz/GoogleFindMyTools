@@ -396,18 +396,31 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
                 await self._reset()
 
     @staticmethod
+    def _b64decode_urlsafe(data: str | bytes) -> bytes:
+        if isinstance(data, str):
+            raw = data.encode("ascii")
+        else:
+            raw = data
+        raw = raw.strip().rstrip(b"=")
+        rem = len(raw) % 4
+        if rem > 0:
+            raw += b"=" * (4 - rem)
+        return urlsafe_b64decode(raw)
+
+    @classmethod
     def _decrypt_raw_data(
+        cls,
         credentials: dict[str, dict[str, str]],
         crypto_key_str: str,
         salt_str: str,
         raw_data: bytes,
     ) -> bytes:
-        crypto_key = urlsafe_b64decode(crypto_key_str.encode("ascii"))
-        salt = urlsafe_b64decode(salt_str.encode("ascii"))
+        crypto_key = cls._b64decode_urlsafe(crypto_key_str)
+        salt = cls._b64decode_urlsafe(salt_str)
         der_data_str = credentials["keys"]["private"]
-        der_data = urlsafe_b64decode(der_data_str.encode("ascii") + b"========")
+        der_data = cls._b64decode_urlsafe(der_data_str)
         secret_str = credentials["keys"]["secret"]
-        secret = urlsafe_b64decode(secret_str.encode("ascii") + b"========")
+        secret = cls._b64decode_urlsafe(secret_str)
         privkey = load_der_private_key(
             der_data, password=None, backend=default_backend()
         )
@@ -449,8 +462,30 @@ class FcmPushClient:  # pylint:disable=too-many-instance-attributes
         ):
             # The deleted_messages message does not contain data.
             return
-        crypto_key = self._app_data_by_key(msg, "crypto-key")[3:]  # strip dh=
-        salt = self._app_data_by_key(msg, "encryption")[5:]  # strip salt=
+        crypto_key_val = self._app_data_by_key(msg, "crypto-key")
+        salt_val = self._app_data_by_key(msg, "encryption")
+
+        crypto_key = crypto_key_val
+        for part in crypto_key_val.split(";"):
+            part = part.strip()
+            if part.startswith("dh="):
+                crypto_key = part[3:]
+                break
+        else:
+            if crypto_key.startswith("dh="):
+                crypto_key = crypto_key[3:]
+        crypto_key = crypto_key.strip('"')
+
+        salt = salt_val
+        for part in salt_val.split(";"):
+            part = part.strip()
+            if part.startswith("salt="):
+                salt = part[5:]
+                break
+        else:
+            if salt.startswith("salt="):
+                salt = salt[5:]
+        salt = salt.strip('"')
         subtype = self._app_data_by_key(msg, "subtype")
         if TYPE_CHECKING:
             assert self.credentials
